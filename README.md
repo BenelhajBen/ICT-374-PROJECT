@@ -5,11 +5,9 @@ Current Progress: 30%
 TODO:
 
 BLOB
-The shell built-in command pwd 
-home directory
-
-in its own pid whenever we use a file descriptor. 
-slow system calls:
+1.The shell built-in command pwd 
+2.home directory 
+3.slow system calls:
  int again = 1;
       char *linept;        // pointer to the line buffer
 
@@ -21,6 +19,12 @@ slow system calls:
                     again = 1;        // signal interruption, read again
       }
       
+ 4.Background job execution: Multi threading (pid child processes running executions while inputting other commands).
+ 5. The shell environment ( parent process ).
+ 6. The shell built-in command exit ( parent process ).
+ 7. Wildcard characters
+ 
  DONE:
  The shell built-in command pwd 
  Shell pipeline |
+ Standard input and output redirections > and <
