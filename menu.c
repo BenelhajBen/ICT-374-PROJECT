@@ -23,3 +23,9 @@ void printMenuScreen()
   sleep(10);
   clrscr();
 }
+
+
+void prompt(char* prmpt)
+{
+  printf("%s", prmpt);
+}

@@ -31,7 +31,22 @@ int main() {
     
 }
 
-void prompt(char* prmpt)
-{
-  printf("%s", prmpt);
-}
+void printComStruct(struct Command_struct *com)
+{ 
+  int i;
+
+  fprintf(stderr,"com_pathname=%s\n", com->com_pathname); 
+  fprintf(stderr,"argc=%d\n", com->argc); 
+  for(i=0;  com->argv[i]!=NULL; i++) 
+      fprintf(stderr,"argv[%d]=%s\n", i, com->argv[i]); 
+      fprintf(stderr,"#######\n"); 
+      if (com->redirect_in == NULL)
+          fprintf(stderr,"redirect_in=NULL\n"); 
+      else
+          fprintf(stderr,"redirect_in=%s\n", com->redirect_in); 
+      if (com->redirect_out == NULL)
+          fprintf(stderr,"redirect_out=NULL\n"); 
+      else
+          fprintf(stderr,"redirect_out=%s\n", com->redirect_out); 
+      fprintf(stderr,"com_suffix=%c\n\n", com->com_suffix); 
+} 
