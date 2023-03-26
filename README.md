@@ -27,4 +27,4 @@ BLOB
  DONE:
  The shell built-in command pwd 
  Shell pipeline |
- Standard input and output redirections > and <
+ Standard input and output redirections > and <.
