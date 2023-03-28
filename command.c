@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <string.h> // string comparisons
 #include "command.h"
+#include <glob.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <limits.h>
+
 
 int separator(char *token)
 {
@@ -42,7 +48,8 @@ void searchRedirection(char *token[], Command *cp){
 void buildCommandArgumentArray(char *token[], Command *cp){
    int n = (cp->last - cp->first+1);
    
-   cp->argv = (char**) realloc(cp->argv, sizeof(char *) *n);
+   //cp->argv = (char**) realloc(cp->argv, sizeof(char *) *n);
+   cp->argv = (char**) calloc(n, sizeof(char *));
      if (cp->argv == NULL) {
          perror("realloc");
          exit(1);
@@ -119,4 +126,58 @@ int separateCommands(char *token[], Command command[])
  
      return nCommands; 
 }
+
+void execute_command(Command *cmd) {
+    if (cmd->stdin_file) {
+        freopen(cmd->stdin_file, "r", stdin);
+    }
+    if (cmd->stdout_file) {
+        freopen(cmd->stdout_file, "w", stdout);
+    }
+
+    int status = execvp(cmd->argv[0], cmd->argv);
+    if (status == -1) {
+        perror("execvp");
+        exit(1);
+    }
+    
+    globfree(&glob_item);
+}
+
+void prompt_handler(char *prompt) {
+    printf("Enter new prompt: ");
+    fgets(prompt, PROMPT_SIZE, stdin);
+    size_t len = strlen(prompt);
+    if (len > 0 && prompt[len - 1] == '\n') {
+        prompt[len - 1] = '\0';
+    }
+}
+
+void pwd_handler() {
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd))) {
+        printf("%s\n", cwd);
+    } else {
+        perror("getcwd");
+    }
+}
+
+void cd_handler(char *path) {
+    if (chdir(path) == -1) {
+        perror("chdir");
+    }
+}
+
+void exit_handler() {
+    exit(0);
+}
+
+void globber(char *token, char ***filearray)
+{
+    glob_t glob_item;
+    glob(token, GLOB_NOCHECK, NULL, &glob_item);
+    *filearray = glob_item.gl_pathv;
+}
+
+
 
