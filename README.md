@@ -2,14 +2,16 @@
 Current Progress: 90%
 
 Done:
+<pre>
 <li>
-The shell built-in command pwd /
-Shell pipeline | /
-Standard input and output redirections > and <. /
-Blob /
-SLow system calls /
-pwd /
-dir /
-ls * /
-                                                </li>
+The shell built-in command pwd 
+Shell pipeline | 
+Standard input and output redirections > and <. 
+Blob 
+SLow system calls 
+pwd 
+dir 
+ls * 
+</li>
+</pre>
 
