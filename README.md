@@ -1,5 +1,5 @@
 # ICT-374-PROJECT
-Current Progress: 30%
+Current Progress: 80%
 
 
 TODO:

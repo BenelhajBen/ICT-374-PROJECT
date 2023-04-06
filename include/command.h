@@ -9,35 +9,31 @@
 // date:		2006.09.21
 // last modified:	2006.10.05
 // note:		not tested therefore it may contain errors
-
-#define MAX_NUM_COMMANDS  1000
-#define PROMPT_SIZE 1000
-#define PATH_MAX 100
+#ifndef COMMAND_H
+#define COMMAND_H
+#define MAX_NUM_COMMANDS  2048
+#define PROMPT_SIZE 100
+#define PATH_MAX 512
 // command separators
 #define pipeSep  "|"                            // pipe separator "|"
 #define conSep   "&"                            // concurrent execution separator "&"
 #define seqSep   ";"                            // sequential execution separator ";"
-
+#define MAX_PIPES 1000
 struct CommandStruct {
    int first;      // index to the first token in the array "token" of the command
    int last;       // index to the first token in the array "token" of the command
+   int argc;
    char *sep;	   // the command separator that follows the command,  must be one of "|", "&", and ";"
    char **argv;        // an array of tokens that forms a command
    char *stdin_file;   // if not NULL, points to the file name 
                         // for stdin redirection                        
    char *stdout_file;  // if not NULL, points to the file name 
                         // for stdout redirection
-   char commandtype;     
 };
 
 typedef struct CommandStruct Command;  // command type
 int separateCommands(char *token[], Command command[]);
 void searchRedirection(char *token[], Command *cp); 
 void buildCommandArgumentArray(char *token[], Command *cp); 
-void execute_command(Command* cmd);
-void globber(char *token, char ***filearray);
-void prompt_handler(char *prompt);
-void pwd_handler();
-void cd_handler();
-void exit_handler();
 
+#endif /*COMMAND_h*/
