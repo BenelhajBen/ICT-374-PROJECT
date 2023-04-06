@@ -14,6 +14,7 @@ void execute_command(Command *command)
     // Handle redirections
     if (command->stdout_file != NULL)
     {
+        // Open the file for writing and create if it doesnt exist.
         ofd = open(command->stdout_file, O_CREAT | O_WRONLY | O_TRUNC, 0666);
         if (ofd < 0)
         {
@@ -23,6 +24,7 @@ void execute_command(Command *command)
     }
     if (command->stdin_file != NULL)
     {
+        // open file for reading
         ifd = open(command->stdin_file, O_RDONLY);
         if (ifd < 0)
         {
@@ -31,33 +33,38 @@ void execute_command(Command *command)
         }
     }
 
+    // Fork a new process.
     if ((pid = fork()) < 0)
     {
         perror("fork\n");
         exit(1);
     }
 
-    if (pid == 0)
-    { // child
+    if (pid == 0)// child
+    {
+        // stdout redirection if required 
         if (ofd >= 0)
         {
             dup2(ofd, 1);
             close(ofd);
         }
+        // stdin redirection if needed
         else if (ifd >= 0)
         {
             dup2(ifd, 0);
             close(ifd);
         }
-
+        
+        // Execute command 
         if (execvp(command->argv[0], command->argv) < 0)
         {
             printf("Command '%s' failed\n", command->argv[0]);
             exit(1);
         }
     }
-    else
-    { // parent
+    else // parent
+    { 
+        // close the file descriptors for the stdout and stdin redirection if needed
         if (ofd >= 0)
         {
             close(ofd);
@@ -69,17 +76,21 @@ void execute_command(Command *command)
             command->stdin_file = NULL;
         }
 
+        // Handle the seperators
         if (strcmp(command->sep, seqSep) == 0 || strcmp(command->sep, pipeSep) == 0)
         {
+            // waiting for hte child process to finish
             wait(NULL);
         }
         else if (strcmp(command->sep, conSep) == 0)
         {
+            // Prints the back ground process for debugging process info
             printf("\n[%d] Background process \n\n", pid);
         }
         else
         {
-            wait(NULL); // Add this line to wait for the child process when the separator is not '&'
+            // wait for the child process when the seperator is not &
+            wait(NULL); 
         }
     }
     return;
