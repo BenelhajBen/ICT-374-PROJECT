@@ -101,18 +101,21 @@ void execute_pipe(Command *cmd, int startIndex, int numPipes)
     int p[2];
     pid_t pid;
 
+    // if no pipes just execute
     if (numPipes == 0)
     {
         execute_command(&cmd[startIndex]);
         return;
     }
 
+    // create a pipe
     if (pipe(p) < 0)
     {
         perror("Error in piping\n");
         return;
     }
 
+    // fork a new process
     if ((pid = fork()) < 0)
     {
         perror("Error in forking\n");
@@ -121,10 +124,12 @@ void execute_pipe(Command *cmd, int startIndex, int numPipes)
 
     if (pid == 0)
     {
+        // redirect child stdout to write end of pipe
         dup2(p[1], STDOUT_FILENO);
         close(p[1]);
         close(p[0]);
 
+        // redirect stdout to a file if the file is specified.
         if (cmd[startIndex].stdout_file != NULL)
         {
             int fd = open(cmd[startIndex].stdout_file, O_WRONLY | O_CREAT, 0766);
@@ -132,16 +137,21 @@ void execute_pipe(Command *cmd, int startIndex, int numPipes)
             close(fd);
         }
 
+        // execute the command
         execute_command(&cmd[startIndex]);
         perror("Error in execvp");
         return;
     }
-    else
+    else // parent
     {
+        // wait for process to finish
         wait(NULL);
+        // redict the parent stdin to the read end of the pipe
         dup2(p[0], STDIN_FILENO);
         close(p[0]);
         close(p[1]);
+
+        // redirect stdin to a file if the file is specified.
         execute_pipe(cmd, startIndex + 1, numPipes - 1);
     }
 }
