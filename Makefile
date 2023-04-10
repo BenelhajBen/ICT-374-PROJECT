@@ -1,15 +1,19 @@
-main:	main.o	command.o	token.o	
-	gcc	main.o	command.o	token.o	
-	
-main.o:	main.c	command.h	token.h	
-	gcc	-c	main.c
+main: main.o token.o command.o commandexecution.o
+	gcc main.o token.o command.o commandexecution.o -o myshell
 
-command.o:	command.c	command.h
-	gcc	-c	command.c
+main.o: main.c include/command.h include/token.h include/commandexecution.h
+	gcc -c main.c
 
-token.o:	token.c	token.h
-	gcc	-c	token.c
+command.o: src/command.c include/command.h
+	gcc -c src/command.c -o command.o	-I../include
+
+token.o: src/token.c include/token.h
+	gcc -c src/token.c -o token.o	-I../include
+
+commandexecution.o: src/commandexecution.c include/commandexecution.h
+	gcc -c src/commandexecution.c -o commandexecution.o	-I../include
 
 clean:
-	rm	*.o
+	rm *.o myshell
+
 		

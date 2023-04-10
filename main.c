@@ -1,146 +1,223 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "token.h"
-#include "command.h"
 #include <signal.h>
-#include <string.h>
 #include <glob.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <errno.h>
+#include "include/token.h"
+#include "include/commandexecution.h"
 
-
-#define PROMPT_SIZE 1000
 #define INPUT_SIZE 1024
+
 void ignore_signal(int signum);
 void sigchld_handler(int signum);
-void printInitialScreen();
+void print_menu();
 
-int main() {
-
+int main()
+{
+    // initializing, prompt, input, tokens, and commands.
     char prompt[PROMPT_SIZE] = "$ ";
     char input[INPUT_SIZE];
     char *tokens[MAX_NUM_TOKENS];
     Command cmnd[MAX_NUM_COMMANDS];
     
-    signal(SIGINT, ignore_signal); // ctrlc
+    // signal handlers.
+    signal(SIGINT, ignore_signal);  // ctrlc
     signal(SIGQUIT, ignore_signal); // ctrl\(sigquit)
     signal(SIGTSTP, ignore_signal); // ctrlz
     signal(SIGCHLD, sigchld_handler);
-    while (1) {
-        printf("%s", prompt);
-        fgets(input, INPUT_SIZE, stdin);
-        int fd[2] = {-1,-1};
-        int fd_in = 0;
+    
+    print_menu(); // menu display
+    
+    // Main loop
+    while (1)
+    {
+        int status;
+        // Reap child process if any have exited.
+        while (waitpid(-1, &status, WNOHANG) > 0)
+            ;
+        fflush(stdout); // Flush the output buffer
+        printf("%s ", prompt); // display prompt
+        int again = 1;
+        char *linept; // pointer to the line buffer
+        
+        // read user input and also the handling of system calls and handling of eof ctrl + d.
+        while (again)
+        {
+            again = 0;
+            linept = fgets(input, INPUT_SIZE, stdin);
+            if (linept == NULL)
+            {
+                if (errno == EINTR)
+                {
+                    again = 1;
+                }
+                else
+                {
+                    // Handle EOF (Ctrl + D)
+                    printf("\n");
+                    exit(0);
+                }
+            }
+        }
 
         // Tokenize input and separate commands
-        
         tokenise(input, tokens);
         int numCommands = separateCommands(tokens, cmnd);
+        
+        // Execution of ecah command
+        for (int i = 0; i < numCommands; i++)
+        {
 
-        for (int i = 0; i < numCommands; i++) {
             char *cmd_name = cmnd[i].argv[0];
-		
-            if (strcmp(cmd_name, "prompt") == 0) {
+            int command_handle = 0;
+            
+            // Handling built in commands.
+            if (strcmp(cmd_name, "prompt") == 0)
+            {
                 prompt_handler(prompt);
-            } else if (strcmp(cmd_name, "pwd") == 0) {
+            }
+            else if (strcmp(cmd_name, "pwd") == 0)
+            {
                 pwd_handler();
-            } else if (strcmp(cmd_name, "exit") == 0) {
+            }
+            else if (strcmp(cmd_name, "exit") == 0 || strcmp(cmd_name, "quit") == 0)
+            {
+
                 exit(0);
-            } else if (strcmp(cmd_name, "cd") == 0) {
-                if (cmnd[i].argv[1]) {
+            }
+            else if (strcmp(cmd_name, "cd") == 0)
+            {
+                if (cmnd[i].argv[1])
+                {
                     cd_handler(cmnd[i].argv[1]);
-                } else {
+                }
+                else
+                {
                     // Handle the case where no argument is provided to cd
                     char *home = getenv("HOME");
-                    if (home) {
+                    if (home)
+                    {
                         cd_handler(home);
-                    } else {
+                    }
+                    else
+                    {
                         fprintf(stderr, "cd: HOME environment variable not set.\n");
                     }
                 }
-                continue;
-            }else if(strcmp(cmnd[i].argv[0], "ls") == 0) {
-		int has_wildcards = 0;
-		for (int j = 1; cmnd[i].argv[j] != NULL; j++) {
-		   if (strchr(cmnd[i].argv[j], '*') != NULL || strchr(cmnd[i].argv[j], '?') != NULL) {
-			    has_wildcards = 1;
-			    glob_t globbuf;
-			    if (glob(cmnd[i].argv[j], GLOB_DOOFFS, NULL, &globbuf) == GLOB_NOMATCH) {
-				printf("No files matching %s\n", cmnd[i].argv[j]);
-			    } else {
-				int k = 0;
-				while(globbuf.gl_pathv[k]) {
-				    printf("%s\n", globbuf.gl_pathv[k]);
-				    ++k;
-				}
-			    }
-			    globfree(&globbuf);
-			}
-	        }
-
-		if (!has_wildcards) {
-			execute_command(&cmnd[i]);
-		}
             }
-
-            pid_t pid = fork();
-            if (pid == 0) {
-                // In the child process
-
-                // Redirect input if necessary
-                if (fd_in != 0) {
-                    dup2(fd_in, cmnd[i].stdin_file);
-                    close(fd_in);
+            else if (strcmp(cmd_name, "ls") == 0)
+            {
+                // Handle wild card expansion for 'ls'
+                int wildcard_present = 0;
+                glob_t globbuf;
+		
+		// Checking for wild card characters in the arguments.
+                for (int j = 1; cmnd[i].argv[j] != NULL; j++)
+                {
+                    if (strchr(cmnd[i].argv[j], '*') != NULL || strchr(cmnd[i].argv[j], '?') != NULL)
+                    {
+                        wildcard_present = 1;
+                        if (glob(cmnd[i].argv[j], GLOB_DOOFFS, NULL, &globbuf) == GLOB_NOMATCH)
+                        {
+                            printf("No files matching %s\n", cmnd[i].argv[j]);
+                        }
+                        else
+                        {
+                            int glob_index = 0;
+                            while (globbuf.gl_pathv[glob_index])
+                            {
+                                // Copy the matched path into the argument list
+                                cmnd[i].argv[j] = globbuf.gl_pathv[glob_index];
+                                execute_command(&cmnd[i]);
+                                ++glob_index;
+                            }
+                            globfree(&globbuf);
+                        }
+                    }
                 }
-
-                // Redirect output if necessary
-                if (strcmp(cmnd[i].sep, pipeSep) == 0) {
-                    dup2(fd[1], cmnd[i].stdout_file);
-                    close(fd[1]);
+		
+		// normal execution of command if no wild card present.
+                if (!wildcard_present)
+                {
+                    execute_command(&cmnd[i]);
                 }
-
-                execute_command(&cmnd[i]);
-                exit(0);
-            } else if (pid > 0) {
-                // In the parent process
-
-                // Close the write end of the pipe if necessary
-                if (strcmp(cmnd[i].sep, pipeSep) == 0) {
-                    close(fd[1]);
-                }
-
-                // Update the input file descriptor for the next command if necessary
-                if (fd_in != 0) {
-		    dup2(fd_in, 0); // Replace cmnd->stdin_file with 0
-		    close(fd_in);
-		}
-
-		// Redirect output if necessary
-		if (strcmp(cmnd[i].sep, pipeSep) == 0) {
-		    dup2(fd[1], 1); // Replace cmnd->stdout_file with 1
-		    close(fd[1]);
-		}
-
-                if (strcmp(cmnd[i].sep, conSep) != 0) {
-                    // If the command is not followed by an "&", wait for it to finish
-                    int status;
-                    waitpid(pid, &status, 0);
-                }
-            } else {
-                // Handle fork error
-                perror("fork");
             }
+            else
+            {
+                // handle pipe lines.
+                int numPipes = 0;
+                for (int j = i; j < numCommands - 1 && strcmp(cmnd[j].sep, "|") == 0; ++j)
+                {
+                    numPipes++;
+                }
 
+                if (numPipes > 0)
+                {
+                    execute_pipe(cmnd, i, numPipes);
+                    i += numPipes; // Skip over the piped commands that were already executed
+                }
+                else
+                {
+                    // handle wild card expansion for other commands
+                    int wildcard_present = 0;
+                    glob_t globbuf;
+  	            
+  	            // check for wild card characters in the arguments
+                    for (int j = 1; cmnd[i].argv[j] != NULL; j++)
+                    {
+                        if (strchr(cmnd[i].argv[j], '*') != NULL || strchr(cmnd[i].argv[j], '?') != NULL)
+                        {
+                            wildcard_present = 1;
+                            if (glob(cmnd[i].argv[j], GLOB_DOOFFS, NULL, &globbuf) == GLOB_NOMATCH)
+                            {
+                                printf("No files matching %s\n", cmnd[i].argv[j]);
+                            }
+                            else
+                            {
+                                int glob_index = 0;
+                                while (globbuf.gl_pathv[glob_index])
+                                {
+                                    // Copy the matched path into the argument list
+                                    cmnd[i].argv[j] = globbuf.gl_pathv[glob_index];
+                                    execute_command(&cmnd[i]);
+                                    ++glob_index;
+                                }
+                                globfree(&globbuf);
+                            }
+                        }
+                    }
+	             
+	            // no wild cards are present execute normally
+                    if (!wildcard_present)
+                    {
+                        execute_command(&cmnd[i]);
+                    }
+                }
+            }
         }
     }
-
     return 0;
 }
 
-void ignore_signal(int signum){ };
-
-void sigchld_handler(int signum){
-  while(waitpid(-1,NULL, WNOHANG) > 0);
-
+void print_menu()
+{
+    printf("\033[H\033[J"); // Clear the screen
+    printf("Shell Menu:\n");
+    printf("1. cd [directory] - Change the current directory to the specified directory.\n");
+    printf("2. pwd - Print the current working directory.\n");
+    printf("3. ls [options] [files/directories] - List files and directories.\n");
+    printf("4. exit - Exit the shell.\n");
+    printf("\nType a command followed by its arguments, if any.\n");
+    printf("\n");
 }
 
+void ignore_signal(int signum){};
 
+void sigchld_handler(int signum)
+{
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
+}
 
