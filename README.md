@@ -1,4 +1,3 @@
-# ICT-374-PROJECT
-Current Progress: 100%
+Shell Program in C for learning purposes
 
 
